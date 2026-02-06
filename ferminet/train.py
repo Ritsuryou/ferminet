@@ -340,9 +340,12 @@ def make_kfac_training_step(
     update. See the Step protocol for details.
   """
   mcmc_step = constants.pmap(mcmc_step, donate_argnums=1)
-  shared_mom = kfac_jax.utils.replicate_all_local_devices(jnp.zeros([]))
+  shared_mom = kfac_jax.utils.replicate_all_local_devices(
+      jnp.zeros([]), axis_name=constants.PMAP_AXIS_NAME
+  )
   shared_damping = kfac_jax.utils.replicate_all_local_devices(
-      jnp.asarray(damping))
+      jnp.asarray(damping), axis_name=constants.PMAP_AXIS_NAME
+  )
   # Due to some KFAC cleverness related to donated buffers, need to do this
   # to make state resettable
   copy_tree = constants.pmap(
@@ -425,9 +428,13 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
 
   # Generate atomic configurations for each walker
   batch_atoms = jnp.tile(atoms[None, ...], [device_batch_size, 1, 1])
-  batch_atoms = kfac_jax.utils.replicate_all_local_devices(batch_atoms)
+  batch_atoms = kfac_jax.utils.replicate_all_local_devices(
+      batch_atoms, axis_name=constants.PMAP_AXIS_NAME
+  )
   batch_charges = jnp.tile(charges[None, ...], [device_batch_size, 1])
-  batch_charges = kfac_jax.utils.replicate_all_local_devices(batch_charges)
+  batch_charges = kfac_jax.utils.replicate_all_local_devices(
+      batch_charges, axis_name=constants.PMAP_AXIS_NAME
+  )
 
   if cfg.debug.deterministic:
     seed = 23
@@ -530,7 +537,9 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
     )
   key, subkey = jax.random.split(key)
   params = network.init(subkey)
-  params = kfac_jax.utils.replicate_all_local_devices(params)
+  params = kfac_jax.utils.replicate_all_local_devices(
+      params, axis_name=constants.PMAP_AXIS_NAME
+  )
   signed_network = network.apply
   # Often just need log|psi(x)|.
   if cfg.system.get('states', 0):
@@ -619,9 +628,13 @@ def train(cfg: ml_collections.ConfigDict, writer_manager=None):
     # is nstates * nelectrons. The vmap over nstates is handled in the function
     # created in make_total_ansatz
     pos = jnp.reshape(pos, data_shape + (-1,))
-    pos = kfac_jax.utils.broadcast_all_local_devices(pos)
+    pos = kfac_jax.utils.broadcast_all_local_devices(
+        pos, axis_name=constants.PMAP_AXIS_NAME
+    )
     spins = jnp.reshape(spins, data_shape + (-1,))
-    spins = kfac_jax.utils.broadcast_all_local_devices(spins)
+    spins = kfac_jax.utils.broadcast_all_local_devices(
+        spins, axis_name=constants.PMAP_AXIS_NAME
+    )
     data = networks.FermiNetData(
         positions=pos, spins=spins, atoms=batch_atoms, charges=batch_charges
     )

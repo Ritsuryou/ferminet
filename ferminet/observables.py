@@ -326,9 +326,15 @@ def make_density_matrix(
     # r' positions
     # In the case of excited states, keep the array flat
     rprime_pos = pos[idx].reshape(*data_shape, -1)
+    rprime_pos = kfac_jax.utils.broadcast_all_local_devices(
+        rprime_pos, axis_name=constants.PMAP_AXIS_NAME)
     rprime_prob = jnp.ones(rprime_pos.shape[:-1])
+    rprime_prob = kfac_jax.utils.broadcast_all_local_devices(
+        rprime_prob, axis_name=constants.PMAP_AXIS_NAME)
     # MCMC move width for r' Monte Carlo sampling
-    move_width = kfac_jax.utils.replicate_all_local_devices(jnp.asarray([0.1]))
+    move_width = kfac_jax.utils.replicate_all_local_devices(
+        jnp.asarray([0.1]), axis_name=constants.PMAP_AXIS_NAME
+    )
     pmove = np.zeros(cfg.mcmc.adapt_frequency)
 
   density_state = DensityState(t=t,
